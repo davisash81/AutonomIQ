@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AutonomIQ BAS · Commissioning Platform</title>
+<style>
+:root{color-scheme:dark;--bg:#08111e;--panel:#111f31;--panel2:#172a40;--line:#2a4059;--txt:#eaf2fb;--muted:#91a8c1;--blue:#67aaff;--green:#4bd5a5;--amber:#f0c66d;--red:#ff7785}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font:14px/1.5 Inter,system-ui,Arial}
+header{position:sticky;top:0;z-index:4;background:#0c1929;border-bottom:1px solid var(--line);padding:14px 22px;display:flex;justify-content:space-between;align-items:center}
+.brand{display:flex;gap:12px;align-items:center}
+.logo{width:38px;height:38px;border-radius:11px;background:linear-gradient(140deg,#6bb4ff,#b4a0ff);color:#07111c;display:grid;place-items:center;font-weight:900}
+.brand h1{font-size:18px;margin:0}
+.muted,small{color:var(--muted)}
+.wrap{max-width:1440px;margin:auto;padding:20px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.metric,.panel{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:15px}
+.metric b{display:block;font-size:24px}
+.metric span{font-size:11px;color:var(--muted)}
+.panel{margin-top:14px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.between{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+h2{font-size:15px;margin:0 0 10px}
+h3{font-size:13px;margin:14px 0 8px}
+button,input,select,textarea{font:inherit;color:var(--txt);background:#1a2c43;border:1px solid #3b5674;border-radius:8px;padding:9px 11px}
+button{cursor:pointer}
+button.primary{background:#245fa7;border-color:#4d91d8}
+button.good{background:#165b45;border-color:#278d6c}
+button.warn{background:#59451e;border-color:#9d7a32}
+button:disabled{opacity:.5;cursor:not-allowed}
+input,select{max-width:100%}
+textarea{width:100%;min-height:130px;resize:vertical}
+.tabs{display:flex;gap:7px;flex-wrap:wrap;margin:13px 0}
+.tab{padding:8px 12px;border:1px solid var(--line);border-radius:8px;color:var(--muted);cursor:pointer}
+.tab.active{background:#213c5c;color:white;border-color:#5486b8}
+.hidden{display:none!important}
+.tablewrap{overflow:auto;max-height:420px}
+table{border-collapse:collapse;width:100%;min-width:700px}
+th,td{padding:9px;border-bottom:1px solid #263b53;text-align:left;font-size:12px}
+th{color:#b7c9dc;font-weight:600}
+.pill{padding:3px 8px;border-radius:99px;background:#1e334c;border:1px solid #35537a;font-size:11px}
+.auth{max-width:460px;margin:40px auto}
+.msg{background:#132233;border-left:3px solid var(--blue);padding:10px;border-radius:8px;margin:8px 0}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:900px){.grid,.split{grid-template-columns:1fr}.wrap{padding:12px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="logo">IQ</div>
+    <div>
+      <h1>AutonomIQ BAS <small>Commissioning Platform</small></h1>
+      <small>Multi-company · AI-assisted · evidence-led</small>
+    </div>
+  </div>
+  <div class="row">
+    <span class="pill" id="connection">API checking…</span>
+    <button id="logout" class="hidden">Sign out</button>
+  </div>
+</header>
+
+<section id="auth" class="auth">
+  <div class="panel">
+    <h2>Sign in or create your company workspace</h2>
+    <p class="muted">Access is by invite only. Enter the invite code you were given, then create your company workspace.</p>
+    <input id="email" type="email" placeholder="Work email">
+    <input id="password" type="password" placeholder="Password (12+ characters)">
+    <div id="registerFields" class="hidden" style="margin-top:8px">
+      <input id="inviteCode" placeholder="Invite code (required)">
+      <input id="orgName" placeholder="Company / organization name">
+      <input id="orgSlug" placeholder="Short URL slug (optional, e.g. acme-hvac)">
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button class="primary" id="login">Sign in</button>
+      <button id="register">Create company account</button>
+    </div>
+    <p id="authmsg" class="muted"></p>
+  </div>
+</section>
+
+<main id="app" class="wrap hidden">
+  <div class="between">
+    <div>
+      <h2 id="projectTitle">Project portfolio</h2>
+      <div class="muted" id="userInfo"></div><div id="planInfo" class="muted" style="font-size:12px;margin-top:4px"></div>
+    </div>
+    <div class="row">
+      <select id="projects"></select>
+      <button id="newProject" class="primary">+ New project</button>
+      <button id="refresh">Refresh</button>
+    </div>
+  </div>
+
+  <div class="grid" style="margin-top:14px">
+    <div class="metric"><span>Equipment</span><b id="mEquipment">0</b><span>Project inventory</span></div>
+    <div class="metric"><span>Mapped points</span><b id="mPoints">0</b><span>Point register</span></div>
+    <div class="metric"><span>Sequence rules</span><b id="mRules">0</b><span>Draft + approved</span></div>
+    <div class="metric"><span>Test runs</span><b id="mTests">0</b><span>Evidence-based</span></div>
+  </div>
+
+  <div class="panel" id="planPanel" style="margin-top:10px">
+    <div class="between">
+      <h2>Plan & usage</h2>
+      <button id="showPlans" class="primary">Change plan</button>
+    </div>
+    <div id="usageSummary" class="muted">Loading…</div>
+    <div id="planPicker" class="hidden" style="margin-top:10px"></div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="overview">Overview</div>
+    <div class="tab" data-tab="equipment">Equipment & points</div>
+    <div class="tab" data-tab="documents">Documents & SOO</div>
+    <div class="tab" data-tab="ai">AI commissioning engineer</div>
+    <div class="tab" data-tab="tests">Sequence tests</div>
+    <div class="tab" data-tab="connectivity">BAS connectivity & audit</div>
+  </div>
+
+  <section id="tab-overview">
+    <div class="split">
+      <div class="panel">
+        <h2>Project configuration</h2>
+        <div class="row"><input id="pname" placeholder="Project name"><input id="client" placeholder="Client / owner"></div>
+        <div class="row" style="margin-top:8px"><input id="site" placeholder="Site / address"><input id="revision" placeholder="SOO revision"></div>
+        <div class="row" style="margin-top:10px"><button class="good" id="saveProject">Save project</button></div>
+        <div id="readiness" class="muted" style="margin-top:12px"></div>
+      </div>
+      <div class="panel">
+        <h2>Commissioning readiness</h2>
+        <p class="muted">Projects are isolated to your company. Upload sequence documents, extract requirements with AI, then review and approve rules before running evidence-based tests.</p>
+        <div id="overviewStatus"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-equipment" class="hidden">
+    <div class="split">
+      <div class="panel">
+        <h2>Add equipment</h2>
+        <div class="row"><input id="eqTag" placeholder="Tag (AHU-01)"><input id="eqKind" placeholder="Kind (AHU, VAV, CHWS…)"></div>
+        <div class="row" style="margin-top:8px"><input id="eqLoc" placeholder="Location"><input id="eqMfr" placeholder="Manufacturer"></div>
+        <button class="primary" id="addEq" style="margin-top:8px">Add equipment</button>
+        <div class="tablewrap" style="margin-top:10px"><table><thead><tr><th>Tag</th><th>Kind</th><th>Parent</th><th>Location</th></tr></thead><tbody id="equipmentRows"></tbody></table></div>
+      </div>
+      <div class="panel">
+        <h2>Points</h2>
+        <div class="row"><input id="ptTag" placeholder="Equipment tag"><input id="ptName" placeholder="Point name"></div>
+        <div class="row" style="margin-top:8px"><input id="ptUnits" placeholder="Units"><input id="ptFunc" placeholder="Function"></div>
+        <button class="primary" id="addPt" style="margin-top:8px">Add point</button>
+        <div style="margin-top:10px">
+          <label class="muted">Import CSV <input type="file" id="csvFile" accept=".csv"></label>
+          <button id="importCsv">Import</button>
+        </div>
+        <div class="tablewrap" style="margin-top:10px"><table><thead><tr><th>Name</th><th>Equip</th><th>Units</th><th>Protocol</th></tr></thead><tbody id="pointRows"></tbody></table></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-documents" class="hidden">
+    <div class="panel">
+      <h2>Sequence of Operations</h2>
+      <textarea id="soo" placeholder="Paste or type the approved Sequence of Operations text here…"></textarea>
+      <div class="row" style="margin-top:8px">
+        <button class="good" id="saveSoo">Save SOO</button>
+        <button class="primary" id="interpret">AI interpret SOO</button>
+      </div>
+      <div id="interpretResult"></div>
+    </div>
+    <div class="panel">
+      <h2>Source documents</h2>
+      <input type="file" id="docFile">
+      <button id="uploadDoc">Upload & extract text</button>
+      <div id="docList" class="muted" style="margin-top:8px"></div>
+    </div>
+  </section>
+
+  <section id="tab-ai" class="hidden">
+    <div class="panel">
+      <h2>AI commissioning engineer</h2>
+      <p class="muted">Grounded in this project's SOO, equipment, points, and extracted documents. All outputs are advisory.</p>
+      <div id="chatLog"></div>
+      <div class="row" style="margin-top:8px">
+        <input id="chatMsg" placeholder="Ask about a sequence, test condition, or point mapping…" style="flex:1">
+        <button class="primary" id="sendChat">Send</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-tests" class="hidden">
+    <div class="panel">
+      <h2>Sequence rules & tests</h2>
+      <div id="rules"></div>
+    </div>
+    <div class="panel">
+      <h2>Test runs</h2>
+      <div id="testRuns" class="muted"></div>
+    </div>
+  </section>
+
+  <section id="tab-connectivity" class="hidden">
+    <div class="split">
+      <div class="panel">
+        <h2>BAS connectivity</h2>
+        <p class="muted">Defaults to simulated mode. No controller writes are exposed.</p>
+        <button id="basStatus">Check BAS status</button>
+        <pre id="basOut" class="msg" style="white-space:pre-wrap"></pre>
+      </div>
+      <div class="panel">
+        <h2>Company audit trail</h2>
+        <button id="loadAudit">Load recent events</button>
+        <div id="auditLog" class="muted" style="margin-top:8px;max-height:360px;overflow:auto"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+const $=id=>document.getElementById(id);
+let token=sessionStorage.getItem('iq_token')||'',project=null,projectData=null;
+
+const api=async(path,opts={})=>{
+  opts.headers={...(opts.headers||{}),...(token?{Authorization:'Bearer '+token}:{})};
+  let r=await fetch('/api'+path,opts);
+  let d=await r.json().catch(()=>({detail:r.statusText}));
+  if(!r.ok) throw Error(typeof d.detail==='string'?d.detail:JSON.stringify(d.detail)||'Request failed');
+  return d;
+};
+const json=(method,body)=>({method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+function msg(id,t){$(id).textContent=t}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&','<':'<','>':'>','"':'"',"'":'&#39;'}[c]))}
+
+async function init(){
+  try{
+    let h=await fetch('/api/health').then(r=>r.json());
+    $('connection').textContent='API online · '+(h.ai_configured?'AI configured':'AI key missing')+' · '+h.bas_adapter;
+    if(token){await api('/auth/me');showApp()}
+  }catch(e){$('connection').textContent='API unavailable'}
+}
+
+$('register').onclick=()=>{
+  const fields = $('registerFields');
+  if (fields.classList.contains('hidden')) {
+    fields.classList.remove('hidden');
+    $('register').textContent = 'Create company & sign in';
+    $('login').textContent = 'Sign in instead';
+  } else {
+    auth('register');
+  }
+};
+$('login').onclick=()=>auth('login');
+
+async function auth(mode){
+  try{
+    let email=$('email').value.trim(), password=$('password').value;
+    if(mode==='register'){
+      let orgName=$('orgName').value.trim();
+      if(!orgName) throw Error('Company name required');
+      let invite=$('inviteCode').value.trim(); if(!invite) throw Error('Invite code is required'); let d=await api('/auth/register', json('POST',{email,password,organization_name:orgName,organization_slug:$('orgSlug').value.trim()||undefined,invite_code:invite}));
+      token=d.access_token;
+    }else{
+      let form=new URLSearchParams({username:email,password});
+      let r=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:form});
+      let d=await r.json();
+      if(!r.ok) throw Error(d.detail);
+      token=d.access_token;
+    }
+    sessionStorage.setItem('iq_token',token);
+    showApp();
+  }catch(e){msg('authmsg','Error: '+e.message); console.error(e)}
+}
+
+$('logout').onclick=()=>{
+  token=''; sessionStorage.removeItem('iq_token');
+  $('app').classList.add('hidden'); $('auth').classList.remove('hidden'); $('logout').classList.add('hidden');
+};
+
+async function showApp(){
+  $('auth').classList.add('hidden'); $('app').classList.remove('hidden'); $('logout').classList.remove('hidden');
+  let u=await api('/auth/me');
+  $('userInfo').textContent=(u.organization?u.organization.name+' · ':'')+u.email+' · '+u.role;
+  await loadProjects();
+  loadUsage();
+}
+
+async function loadProjects(){
+  let ps=await api('/projects');
+  $('projects').innerHTML=ps.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  if(!ps.length){project=null;projectData=null;$('projectTitle').textContent='Create your first project';return}
+  project=Number($('projects').value||ps[0].id);
+  await loadProject();
+}
+$('projects').onchange=async()=>{project=Number($('projects').value);await loadProject()};
+$('newProject').onclick=async()=>{
+  let name=prompt('Project name');
+  if(!name) return;
+  let p=await api('/projects',json('POST',{name}));
+  await loadProjects();
+  $('projects').value=p.id; project=p.id; await loadProject();
+};
+$('refresh').onclick=loadProject;
+
+async function loadProject(){
+  if(!project) return;
+  projectData=await api('/projects/'+project);
+  $('projectTitle').textContent=projectData.name;
+  $('pname').value=projectData.name;
+  $('client').value=projectData.client;
+  $('site').value=projectData.site;
+  $('revision').value=projectData.soo_revision;
+  $('soo').value=projectData.soo_text||'';
+  $('mEquipment').textContent=projectData.equipment.length;
+  $('mPoints').textContent=projectData.points.length;
+  $('mRules').textContent=projectData.rules.length;
+  $('mTests').textContent=(projectData.tests||[]).length;
+  renderEquipment();
+  renderRules();
+  renderOverview();
+  $('docList').innerHTML=(projectData.documents||[]).map(d=>`<div>${esc(d.filename)}</div>`).join('')||'No documents uploaded';
+}
+
+function renderOverview(){
+  $('readiness').innerHTML=`
+    <p>${projectData.equipment.length} equipment assets</p>
+    <p>${projectData.points.length} points mapped</p>
+    <p>${projectData.documents.length} documents</p>
+    <p>${projectData.rules.length} sequence rules</p>`;
+}
+
+function renderEquipment(){
+  $('equipmentRows').innerHTML=projectData.equipment.map(x=>`<tr><td>${esc(x.tag)}</td><td>${esc(x.kind)}</td><td>${esc(x.parent_tag)}</td><td>${esc(x.location)}</td></tr>`).join('');
+  $('pointRows').innerHTML=projectData.points.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.equipment_tag)}</td><td>${esc(x.units)}</td><td>${esc(x.protocol)}</td></tr>`).join('');
+}
+
+function renderRules(){
+  $('rules').innerHTML=projectData.rules.map(r=>`
+    <div class="msg">
+      <div class="between"><b>${esc(r.title)}</b><span class="pill">${esc(r.status)} · ${Math.round((r.confidence||0)*100)}%</span></div>
+      <div class="muted">${esc(r.operating_condition)}</div>
+      <div>${esc(r.expected_behavior)}</div>
+      <div class="row" style="margin-top:6px">
+        <button class="good" onclick="reviewRule(${r.id},'approved')">Approve</button>
+        <button class="warn" onclick="reviewRule(${r.id},'rejected')">Reject</button>
+        <button onclick="runRule(${r.id})">Run test</button>
+      </div>
+    </div>`).join('') || '<p class="muted">No rules yet. Interpret an SOO to generate draft requirements.</p>';
+}
+
+async function reviewRule(id,status){
+  let notes=prompt('Engineer notes (optional)')||'';
+  await api(`/projects/${project}/rules/${id}`,json('PUT',{status,engineer_notes:notes}));
+  await loadProject();
+}
+async function runRule(id){
+  try{
+    let res=await api(`/projects/${project}/rules/${id}/run`,{method:'POST'});
+    alert('Test status: '+res.status);
+    await loadProject();
+  }catch(e){alert(e.message)}
+}
+
+$('saveProject').onclick=async()=>{
+  await api('/projects/'+project,json('PUT',{
+    name:$('pname').value, client:$('client').value, site:$('site').value,
+    soo_revision:$('revision').value, soo_text:$('soo').value, timezone:'America/New_York'
+  }));
+  await loadProject();
+};
+$('saveSoo').onclick=$('saveProject').onclick;
+
+$('addEq').onclick=async()=>{
+  await api(`/projects/${project}/equipment`,json('POST',{tag:$('eqTag').value,kind:$('eqKind').value,location:$('eqLoc').value,manufacturer:$('eqMfr').value}));
+  await loadProject();
+};
+$('addPt').onclick=async()=>{
+  await api(`/projects/${project}/points`,json('POST',{equipment_tag:$('ptTag').value,name:$('ptName').value,units:$('ptUnits').value,function:$('ptFunc').value}));
+  await loadProject();
+};
+$('importCsv').onclick=async()=>{
+  let f=$('csvFile').files[0]; if(!f) return;
+  let fd=new FormData(); fd.append('file',f);
+  let r=await fetch(`/api/projects/${project}/points/import-csv`,{method:'POST',headers:{Authorization:'Bearer '+token},body:fd});
+  let d=await r.json();
+  alert('Added: '+(d.added||[]).length+'  Errors: '+(d.errors||[]).length);
+  await loadProject();
+};
+$('uploadDoc').onclick=async()=>{
+  let f=$('docFile').files[0]; if(!f) return;
+  let fd=new FormData(); fd.append('file',f);
+  let r=await fetch(`/api/projects/${project}/documents`,{method:'POST',headers:{Authorization:'Bearer '+token},body:fd});
+  let d=await r.json();
+  if(!r.ok) alert(d.detail||'Upload failed'); else {alert('Extracted '+d.chars+' characters'); await loadProject();}
+};
+$('interpret').onclick=async()=>{
+  $('interpretResult').textContent='Interpreting…';
+  try{
+    let d=await api('/ai/interpret-soo',json('POST',{project_id:project}));
+    $('interpretResult').innerHTML=`<div class="msg"><b>${esc(d.summary||'')}</b><br>${(d.rules_created||0)} draft rules created.</div>`;
+    await loadProject();
+  }catch(e){$('interpretResult').textContent=e.message}
+};
+$('sendChat').onclick=async()=>{
+  let m=$('chatMsg').value.trim(); if(!m) return;
+  $('chatLog').insertAdjacentHTML('beforeend',`<div class="msg"><b>You:</b> ${esc(m)}</div>`);
+  $('chatMsg').value='';
+  try{
+    let d=await api('/ai/chat',json('POST',{message:m,project_id:project}));
+    $('chatLog').insertAdjacentHTML('beforeend',`<div class="msg"><b>AI:</b> ${esc(d.reply)}</div>`);
+  }catch(e){$('chatLog').insertAdjacentHTML('beforeend',`<div class="msg">${esc(e.message)}</div>`)}
+};
+$('basStatus').onclick=async()=>{
+  try{$('basOut').textContent=JSON.stringify(await api('/bas/status'),null,2)}catch(e){$('basOut').textContent=e.message}
+};
+$('loadAudit').onclick=async()=>{
+  let rows=await api('/audit?limit=50');
+  $('auditLog').innerHTML=rows.map(x=>`<div>${new Date(x.created_at).toLocaleString()} · ${esc(x.action)} · project ${x.project_id||'-'}</div>`).join('')||'No events';
+};
+
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active');
+  document.querySelectorAll('[id^=tab-]').forEach(s=>s.classList.add('hidden'));
+  $('tab-'+t.dataset.tab).classList.remove('hidden');
+});
+
+async function loadUsage(){
+  try{
+    let u=await api('/org/usage');
+    $('usageSummary').innerHTML=`<b>${esc(u.plan_name)}</b> · $${u.price_monthly}/mo &nbsp;|&nbsp; Users ${u.users}/${u.max_users} &nbsp;|&nbsp; Projects ${u.projects}/${u.max_projects} &nbsp;|&nbsp; AI calls ${u.ai_calls}/${u.ai_calls_limit} this month`;
+    $('planInfo').textContent=u.plan_name+' plan';
+  }catch(e){$('usageSummary').textContent='Could not load plan info'}
+}
+$('showPlans').onclick=async()=>{
+  let box=$('planPicker');
+  if(!box.classList.contains('hidden')){box.classList.add('hidden');return}
+  let plans=await api('/plans');
+  box.innerHTML=plans.map(p=>`<div class="msg"><b>${esc(p.name)}</b> — $${p.price_monthly}/mo ($${p.price_annual}/yr)<br><span class="muted">${esc(p.description)} · ${p.max_users} users · ${p.max_projects} projects · ${p.ai_calls_per_month} AI calls/mo</span><br><button class="good" onclick="setPlan('${p.id}')">Select ${esc(p.name)}</button></div>`).join('');
+  box.classList.remove('hidden');
+};
+async function setPlan(id){
+  if(!confirm('Change to this plan? (Billing integration comes next — this only updates your limit tier for now.)'))return;
+  await api('/org/plan',json('POST',{plan:id}));
+  await loadUsage();
+  $('planPicker').classList.add('hidden');
+}
+
+loadUsage();
+init();
+</script>
+</body>
+</html>
